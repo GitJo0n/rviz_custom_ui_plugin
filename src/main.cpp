@@ -107,6 +107,8 @@ int main(int argc, char** argv)
         }
     });
 
+    // test github
+
     // ============= View 설정 =============
     QTimer::singleShot(0, [frame]() {
         rviz::ViewManager* view_manager = frame->getManager()->getViewManager();
