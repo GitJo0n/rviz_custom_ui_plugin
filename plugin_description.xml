@@ -1,0 +1,9 @@
+<library path="lib/libcustom_ui_panel">
+  <class name="rviz_custom_ui_plugin/CustomUIPanel"
+         type="rviz_custom_ui_plugin::CustomUIPanel"
+         base_class_type="rviz::Panel">
+    <description>
+      Custom UI Panel for RViz.
+    </description>
+  </class>
+</library>
