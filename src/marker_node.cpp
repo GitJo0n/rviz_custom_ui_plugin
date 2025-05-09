@@ -72,7 +72,31 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
                  feedback->pose.position.y,
                  feedback->pose.position.z);
 
-        std::string image_path = "/home/user/person_captures/person_" + feedback->marker_name + ".jpg";
+        std::string marker_name = feedback->marker_name;
+
+        // 현재 마커 가져오기
+        visualization_msgs::InteractiveMarker clicked_marker;
+        if (server_ptr->get(marker_name, clicked_marker))
+        {
+            // 기존 색상 초기화 후 초록색으로 설정
+            if (!clicked_marker.controls.empty() && !clicked_marker.controls[0].markers.empty())
+            {
+                visualization_msgs::Marker &marker = clicked_marker.controls[0].markers[0];
+                marker.color.r = 0.0;
+                marker.color.g = 1.0;
+                marker.color.b = 0.0;
+                marker.color.a = 0.7; // 클릭된 마커는 더 뚜렷하게
+
+                server_ptr->insert(clicked_marker); // 수정한 마커 재삽입
+                server_ptr->applyChanges();
+            }
+        }
+        else
+        {
+            ROS_WARN("클릭한 마커를 찾을 수 없습니다: %s", marker_name.c_str());
+        }
+
+        std::string image_path = "/home/user/person_captures/person_" + marker_name + ".jpg";
 
         // 메인 스레드에서 showImage() 실행
         QMetaObject::invokeMethod(app_ptr, [image_path]() {
@@ -80,7 +104,6 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
         }, Qt::QueuedConnection);
     }
 }
-
 ros::Time last_marker_time = ros::Time(0);
 // 콜백 함수: 사람 인식 시 마커 추가
 // 콜백 함수 변경
