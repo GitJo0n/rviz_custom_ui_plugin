@@ -65,16 +65,6 @@ void showImage(const std::string &image_path)
     image_window->setWindowTitle("Detected Image");
     image_window->show();
 
-    // 새 이미지 창 생성
-    image_window = new QWidget();
-    QLabel *label = new QLabel(image_window);
-    label->setPixmap(pixmap);
-    label->setScaledContents(true);
-    label->resize(600, 400);
-
-    image_window->resize(600, 400);
-    image_window->setWindowTitle("Detected Image");
-
     // 화면 해상도 기준 위치 설정
     QDesktopWidget desktop;
     int screenWidth = desktop.screenGeometry().width();
