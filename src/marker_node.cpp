@@ -15,6 +15,8 @@
 #include <ctime>
 #include <vector>
 
+#include <QDesktopWidget>
+
 // #include <geometry_msgs/Point.h>  // 사람 위치 받을 때 사용
 #include <yolov10_ros_msgs/PersonMarkerData.h> // 예시 경로
 // #include <geometry_msgs/Point.h> // 기존 Point는 더 이상 직접 사용 안 함
@@ -62,6 +64,31 @@ void showImage(const std::string &image_path)
     image_window->resize(600, 400);
     image_window->setWindowTitle("Detected Image");
     image_window->show();
+
+    // 새 이미지 창 생성
+    image_window = new QWidget();
+    QLabel *label = new QLabel(image_window);
+    label->setPixmap(pixmap);
+    label->setScaledContents(true);
+    label->resize(600, 400);
+
+    image_window->resize(600, 400);
+    image_window->setWindowTitle("Detected Image");
+
+    // 화면 해상도 기준 위치 설정
+    QDesktopWidget desktop;
+    int screenWidth = desktop.screenGeometry().width();
+    int screenHeight = desktop.screenGeometry().height();
+
+    int windowWidth = image_window->width();
+    int windowHeight = image_window->height();
+
+    int x = screenWidth - windowWidth - 20;  // 오른쪽 여백 20px
+    int y = 20;                              // 상단 여백 20px
+
+    image_window->move(x, y);  // 위치 지정
+    image_window->show();
+
 }
 
 
