@@ -24,6 +24,10 @@ interactive_markers::InteractiveMarkerServer *server_ptr = nullptr;
 const int MAX_MARKERS = 10;
 QWidget *image_window = nullptr;
 
+// recently clicked marker
+std::string last_clicked_marker = "";
+
+
 // 이미지 표시 함수
 void showImage(const std::string &image_path)
 {
@@ -66,44 +70,61 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
 {
     if (feedback->event_type == visualization_msgs::InteractiveMarkerFeedback::BUTTON_CLICK)
     {
-        ROS_INFO("Clicked Marker: %s at (%.2f, %.2f, %.2f)",
-                 feedback->marker_name.c_str(),
-                 feedback->pose.position.x,
-                 feedback->pose.position.y,
-                 feedback->pose.position.z);
-
         std::string marker_name = feedback->marker_name;
 
-        // 현재 마커 가져오기
+        // 이전 클릭 마커를 빨간색으로 되돌리기
+        if (!last_clicked_marker.empty() && last_clicked_marker != marker_name)
+        {
+            visualization_msgs::InteractiveMarker prev_marker;
+            if (server_ptr->get(last_clicked_marker, prev_marker))
+            {
+                if (!prev_marker.controls.empty() && !prev_marker.controls[0].markers.empty())
+                {
+                    visualization_msgs::Marker &m = prev_marker.controls[0].markers[0];
+                    m.color.r = 1.0;
+                    m.color.g = 0.0;
+                    m.color.b = 0.0;
+                    m.color.a = 0.5;
+
+                    server_ptr->insert(prev_marker);
+                }
+            }
+        }
+
+        // 현재 클릭된 마커를 초록색으로 변경
         visualization_msgs::InteractiveMarker clicked_marker;
         if (server_ptr->get(marker_name, clicked_marker))
         {
-            // 기존 색상 초기화 후 초록색으로 설정
             if (!clicked_marker.controls.empty() && !clicked_marker.controls[0].markers.empty())
             {
                 visualization_msgs::Marker &marker = clicked_marker.controls[0].markers[0];
                 marker.color.r = 0.0;
                 marker.color.g = 1.0;
                 marker.color.b = 0.0;
-                marker.color.a = 0.7; // 클릭된 마커는 더 뚜렷하게
+                marker.color.a = 0.7;
 
-                server_ptr->insert(clicked_marker); // 수정한 마커 재삽입
-                server_ptr->applyChanges();
+                server_ptr->insert(clicked_marker);
+                server_ptr->applyChanges();  // 변경 적용
             }
         }
-        else
-        {
-            ROS_WARN("클릭한 마커를 찾을 수 없습니다: %s", marker_name.c_str());
-        }
+
+        // 마지막 클릭 마커 이름 업데이트
+        last_clicked_marker = marker_name;
+
+        ROS_INFO("Clicked Marker: %s at (%.2f, %.2f, %.2f)",
+                 marker_name.c_str(),
+                 feedback->pose.position.x,
+                 feedback->pose.position.y,
+                 feedback->pose.position.z);
 
         std::string image_path = "/home/user/person_captures/person_" + marker_name + ".jpg";
 
-        // 메인 스레드에서 showImage() 실행
         QMetaObject::invokeMethod(app_ptr, [image_path]() {
             showImage(image_path);
         }, Qt::QueuedConnection);
     }
 }
+
 ros::Time last_marker_time = ros::Time(0);
 // 콜백 함수: 사람 인식 시 마커 추가
 // 콜백 함수 변경
