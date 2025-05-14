@@ -119,6 +119,9 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
                 marker.color.g = 1.0;
                 marker.color.b = 0.0;
                 marker.color.a = 0.7;
+                marker.scale.x = 0.2; // 크기 조정
+                marker.scale.y = 0.2;
+                marker.scale.z = 0.2;
 
                 server_ptr->insert(clicked_marker);
                 server_ptr->applyChanges();  // 변경 적용
@@ -177,9 +180,9 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
 
     visualization_msgs::Marker sphereMarker;
     sphereMarker.type = visualization_msgs::Marker::SPHERE;
-    sphereMarker.scale.x = 0.2;
-    sphereMarker.scale.y = 0.2;
-    sphereMarker.scale.z = 0.2;
+    sphereMarker.scale.x = 0.1;
+    sphereMarker.scale.y = 0.1;
+    sphereMarker.scale.z = 0.1;
     sphereMarker.color.r = 1.0;
     sphereMarker.color.g = 0.0;
     sphereMarker.color.b = 0.0;
