@@ -21,10 +21,15 @@
 #include <yolov10_ros_msgs/PersonMarkerData.h> // 예시 경로
 // #include <geometry_msgs/Point.h> // 기존 Point는 더 이상 직접 사용 안 함
 
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
+
 QApplication *app_ptr = nullptr;
 interactive_markers::InteractiveMarkerServer *server_ptr = nullptr;
 const int MAX_MARKERS = 10;
 QWidget *image_window = nullptr;
+tf2_ros::Buffer tfBuffer;
 
 // recently clicked marker
 std::string last_clicked_marker = "";
@@ -102,6 +107,9 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
                     m.color.g = 0.0;
                     m.color.b = 0.0;
                     m.color.a = 0.5;
+                    m.scale.x = 0.1; // 크기 조정
+                    m.scale.y = 0.1;
+                    m.scale.z = 0.1;
 
                     server_ptr->insert(prev_marker);
                 }
@@ -150,29 +158,39 @@ ros::Time last_marker_time = ros::Time(0);
 // 콜백 함수 변경
 void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& msg)
 {
-    static int marker_count = 0; // marker_count는 이제 여기서 관리 안해도 될 수 있음 (아래 설명 참고)
     static ros::Time last_marker_time = ros::Time(0);
-
     ros::Time current_time = ros::Time::now();
-    if ((current_time - last_marker_time).toSec() < 5.0) // 5초 쿨타임은 유지
+
+    if ((current_time - last_marker_time).toSec() < 5.0)
     {
         ROS_INFO("marker adding waiting... after %.2fsec ", 5.0 - (current_time - last_marker_time).toSec());
         return;
     }
 
-    // MAX_MARKERS 제한은 유지할 수 있음 (선택 사항)
-    // if (marker_count >= MAX_MARKERS) { ... return; }
+    // 카메라 현재 위치(TF) 조회
+    geometry_msgs::Pose current_pose;
+    try
+    {
+        geometry_msgs::TransformStamped transformStamped = tfBuffer.lookupTransform("map", "base_link", ros::Time(0), ros::Duration(0.5));
+        current_pose.position.x = transformStamped.transform.translation.x;
+        current_pose.position.y = transformStamped.transform.translation.y;
+        current_pose.position.z = transformStamped.transform.translation.z;
+        current_pose.orientation = transformStamped.transform.rotation;
+    }
+    catch (tf2::TransformException &ex)
+    {
+        ROS_WARN("TF lookup failed: %s", ex.what());
+        return;
+    }
 
-    // --- 중요: 메시지에서 이미지 인덱스를 가져와 마커 이름으로 사용 ---
     std::string marker_name = std::to_string(msg->image_index);
 
     visualization_msgs::InteractiveMarker interactiveMarker;
     interactiveMarker.header.frame_id = "map";
-    interactiveMarker.name = marker_name; // 받은 인덱스를 이름으로 사용
-    interactiveMarker.pose.position = msg->position; // 받은 좌표 사용
+    interactiveMarker.name = marker_name;
+    interactiveMarker.pose = current_pose;
     interactiveMarker.scale = 1.0;
 
-    // ... (컨트롤 및 마커 설정은 기존과 동일) ...
     visualization_msgs::InteractiveMarkerControl control;
     control.name = "click_control";
     control.interaction_mode = visualization_msgs::InteractiveMarkerControl::BUTTON;
@@ -190,7 +208,6 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
 
     control.markers.push_back(sphereMarker);
     interactiveMarker.controls.push_back(control);
-    // interactiveMarker.controls.clear(); // 필요 없음
 
     if (server_ptr)
     {
@@ -198,18 +215,25 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
         server_ptr->applyChanges();
     }
 
-    // marker_count++; // Python에서 보낸 인덱스를 사용하므로 여기서 카운트할 필요 없음
     last_marker_time = current_time;
 
-    ROS_INFO("Person marker added: %s (%.2f, %.2f, %.2f)",
-             marker_name.c_str(), msg->position.x, msg->position.y, msg->position.z);
+    ROS_INFO("Marker added at robot position: %s (%.2f, %.2f, %.2f)",
+             marker_name.c_str(),
+             current_pose.position.x,
+             current_pose.position.y,
+             current_pose.position.z);
 }
+
 
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "marker_node");
     ros::NodeHandle nh;
+
+    // TF listener 추가
+    tf2_ros::TransformListener tfListener(tfBuffer);
+
 
     // Qt 애플리케이션 초기화
     int fake_argc = 1;
