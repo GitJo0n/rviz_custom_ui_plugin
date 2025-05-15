@@ -89,21 +89,33 @@ int main(int argc, char** argv)
     pointcloud_display->subProp("Size (m)")->setValue(0.01);
     
     // ============= MapCloud 디스플레이 추가 =============
-    rviz::Display* mapcloud_display = manager->createDisplay("rtabmap_ros/MapCloud", "MapCloud", true);
+    rviz::Display* mapcloud_display = manager->createDisplay("rtabmap_rviz_plugins/MapCloud", "MapCloud", true);
     root_display_group->addDisplay(mapcloud_display);
 
-    QTimer::singleShot(0, [mapcloud_display]() {
+    QTimer::singleShot(100, [mapcloud_display]() {
         if (mapcloud_display) {
 	    mapcloud_display->subProp("Topic")->setValue("/rtabmap/mapData");
             mapcloud_display->subProp("Style")->setValue("Points");
 	    mapcloud_display->subProp("Size (Pixels)")->setValue(3);
-	    mapcloud_display->subProp("Cloud decimation")->setValue(4);
-	    mapcloud_display->subProp("Cloud max depth (m)")->setValue(4);
+	    mapcloud_display->subProp("Cloud decimation")->setValue(1);
+	    mapcloud_display->subProp("Cloud max depth (m)")->setValue(7);
 	    mapcloud_display->subProp("Cloud voxel size (m)")->setValue(0.01);
 	    mapcloud_display->subProp("Node filtering radius (m)")->setValue(0);
 	    mapcloud_display->subProp("Node filtering angle (deg)")->setValue(30);
 	    mapcloud_display->subProp("Download map")->setValue(true);
 	    mapcloud_display->subProp("Download graph")->setValue(true);
+        }
+    });
+    // ============= MapGraph 디스플레이 추가 =============
+    rviz::Display* mapgraph_display = manager->createDisplay("rtabmap_rviz_plugins/MapGraph", "MapGraph", true);
+    root_display_group->addDisplay(mapgraph_display);
+
+    QTimer::singleShot(0, [mapgraph_display]() {
+        if (mapgraph_display) {
+            mapgraph_display->subProp("Topic")->setValue("/rtabmap/mapGraph");
+            mapgraph_display->subProp("Graph color")->setValue("255;0;255"); // (R;G;B) 문자열
+            mapgraph_display->subProp("Node size (pixels)")->setValue(5);
+            mapgraph_display->subProp("Line width")->setValue(2.0);
         }
     });
 
