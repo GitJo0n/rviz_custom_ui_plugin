@@ -89,16 +89,16 @@ int main(int argc, char** argv)
     pointcloud_display->subProp("Size (m)")->setValue(0.01);
     
     // ============= MapCloud 디스플레이 추가 =============
-    rviz::Display* mapcloud_display = manager->createDisplay("rtabmap_ros/MapCloud", "MapCloud", true);
+    rviz::Display* mapcloud_display = manager->createDisplay("rtabmap_rviz_plugins/MapCloud", "MapCloud", true);
     root_display_group->addDisplay(mapcloud_display);
 
-    QTimer::singleShot(0, [mapcloud_display]() {
+    QTimer::singleShot(100, [mapcloud_display]() {
         if (mapcloud_display) {
 	    mapcloud_display->subProp("Topic")->setValue("/rtabmap/mapData");
             mapcloud_display->subProp("Style")->setValue("Points");
 	    mapcloud_display->subProp("Size (Pixels)")->setValue(3);
-	    mapcloud_display->subProp("Cloud decimation")->setValue(4);
-	    mapcloud_display->subProp("Cloud max depth (m)")->setValue(4);
+	    mapcloud_display->subProp("Cloud decimation")->setValue(1);
+	    mapcloud_display->subProp("Cloud max depth (m)")->setValue(7);
 	    mapcloud_display->subProp("Cloud voxel size (m)")->setValue(0.01);
 	    mapcloud_display->subProp("Node filtering radius (m)")->setValue(0);
 	    mapcloud_display->subProp("Node filtering angle (deg)")->setValue(30);
@@ -106,9 +106,18 @@ int main(int argc, char** argv)
 	    mapcloud_display->subProp("Download graph")->setValue(true);
         }
     });
+    // ============= Mappath 디스플레이 추가 =============
+    rviz::Display* mapgraph_display = manager->createDisplay("rviz/Path", "Path", true);
+    root_display_group->addDisplay(mapgraph_display);
 
-    // test github
-
+    QTimer::singleShot(0, [mapgraph_display]() {
+        if (mapgraph_display) {
+            mapgraph_display->subProp("Topic")->setValue("/rtabmap/mapPath");
+            mapgraph_display->subProp("Color")->setValue("0;255;0"); // RGB 문자열
+            mapgraph_display->subProp("Line Style")->setValue("Lines"); // Lines 또는 Billboards
+            mapgraph_display->subProp("Line Width")->setValue(2.0);
+        }
+    });
     // ============= View 설정 =============
     QTimer::singleShot(0, [frame]() {
         rviz::ViewManager* view_manager = frame->getManager()->getViewManager();

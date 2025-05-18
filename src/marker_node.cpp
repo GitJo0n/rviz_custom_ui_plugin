@@ -24,6 +24,8 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+#include <nav_msgs/Path.h>
+
 
 QApplication *app_ptr = nullptr;
 interactive_markers::InteractiveMarkerServer *server_ptr = nullptr;
@@ -156,6 +158,15 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
 ros::Time last_marker_time = ros::Time(0);
 // 콜백 함수: 사람 인식 시 마커 추가
 // 콜백 함수 변경
+// 콜백 함수 변경 (mapPath 좌표를 사용)
+nav_msgs::Path latest_map_path;
+
+// /rtabmap/mapPath 토픽의 callback 함수
+void mapPathCallback(const nav_msgs::Path::ConstPtr& msg)
+{
+    latest_map_path = *msg;
+}
+
 void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& msg)
 {
     static ros::Time last_marker_time = ros::Time(0);
@@ -167,28 +178,21 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
         return;
     }
 
-    // 카메라 현재 위치(TF) 조회
-    geometry_msgs::Pose current_pose;
-    try
+    if (latest_map_path.poses.empty())
     {
-        geometry_msgs::TransformStamped transformStamped = tfBuffer.lookupTransform("map", "base_link", ros::Time(0), ros::Duration(0.5));
-        current_pose.position.x = transformStamped.transform.translation.x;
-        current_pose.position.y = transformStamped.transform.translation.y;
-        current_pose.position.z = transformStamped.transform.translation.z;
-        current_pose.orientation = transformStamped.transform.rotation;
-    }
-    catch (tf2::TransformException &ex)
-    {
-        ROS_WARN("TF lookup failed: %s", ex.what());
+        ROS_WARN("mapPath is empty, cannot set marker");
         return;
     }
+
+    // 최신 좌표를 가져옴
+    geometry_msgs::PoseStamped latest_pose = latest_map_path.poses.back();
 
     std::string marker_name = std::to_string(msg->image_index);
 
     visualization_msgs::InteractiveMarker interactiveMarker;
-    interactiveMarker.header.frame_id = "map";
+    interactiveMarker.header.frame_id = latest_pose.header.frame_id; // rtabmap mapPath의 frame_id 사용
     interactiveMarker.name = marker_name;
-    interactiveMarker.pose = current_pose;
+    interactiveMarker.pose = latest_pose.pose;
     interactiveMarker.scale = 1.0;
 
     visualization_msgs::InteractiveMarkerControl control;
@@ -217,13 +221,12 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
 
     last_marker_time = current_time;
 
-    ROS_INFO("Marker added at robot position: %s (%.2f, %.2f, %.2f)",
+    ROS_INFO("Marker added at RTAB-Map position: %s (%.2f, %.2f, %.2f)",
              marker_name.c_str(),
-             current_pose.position.x,
-             current_pose.position.y,
-             current_pose.position.z);
+             latest_pose.pose.position.x,
+             latest_pose.pose.position.y,
+             latest_pose.pose.position.z);
 }
-
 
 
 int main(int argc, char **argv)
@@ -231,25 +234,25 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "marker_node");
     ros::NodeHandle nh;
 
-    // TF listener 추가
+    // TF listener
     tf2_ros::TransformListener tfListener(tfBuffer);
 
-
-    // Qt 애플리케이션 초기화
+    // Qt
     int fake_argc = 1;
     char *fake_argv[] = {(char *)"ros_qt_node"};
     QApplication app(fake_argc, fake_argv);
-    app.setQuitOnLastWindowClosed(false); 
+    app.setQuitOnLastWindowClosed(false);
     app_ptr = &app;
-
 
     std::srand(std::time(0));
 
     server_ptr = new interactive_markers::InteractiveMarkerServer("marker_server");
 
-    // Subscriber 변경
-    // ros::Subscriber sub = nh.subscribe("/person_detected", 10, personCallback); // 기존 코드 주석 처리
-    ros::Subscriber sub = nh.subscribe("/person_marker_data", 10, personMarkerCallback); // 새 토픽 및 콜백 구독
+    // Subscriber (기존 personMarkerCallback)
+    ros::Subscriber sub = nh.subscribe("/person_marker_data", 10, personMarkerCallback);
+
+    // 새로 추가한 mapPath Subscriber
+    ros::Subscriber map_path_sub = nh.subscribe("/rtabmap/mapPath", 10, mapPathCallback);
 
     ros::AsyncSpinner spinner(1);
     spinner.start();
