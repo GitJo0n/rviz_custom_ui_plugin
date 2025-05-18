@@ -129,36 +129,22 @@ int main(int argc, char** argv)
     if (mapcloud_display) { // null 체크 추가
         root_display_group->addDisplay(mapcloud_display);
 
-        QTimer::singleShot(100, [mapcloud_display]() {
-            if (mapcloud_display) {
-                mapcloud_display->subProp("Topic")->setValue("/rtabmap/mapData");
-                mapcloud_display->subProp("Style")->setValue("Points");
-                mapcloud_display->subProp("Size (Pixels)")->setValue(3);
-                mapcloud_display->subProp("Cloud decimation")->setValue(1);
-                mapcloud_display->subProp("Cloud max depth (m)")->setValue(7.0); // 실수형으로 명시
-                mapcloud_display->subProp("Cloud voxel size (m)")->setValue(0.01);
-                mapcloud_display->subProp("Node filtering radius (m)")->setValue(0.0); // 실수형으로 명시
-                mapcloud_display->subProp("Node filtering angle (deg)")->setValue(30.0); // 실수형으로 명시
-                mapcloud_display->subProp("Download map")->setValue(true);
-                mapcloud_display->subProp("Download graph")->setValue(true);
-            }
-        });
-    }
+    QTimer::singleShot(0, [mapcloud_display]() {
+        if (mapcloud_display) {
+	    mapcloud_display->subProp("Topic")->setValue("/rtabmap/mapData");
+            mapcloud_display->subProp("Style")->setValue("Points");
+	    mapcloud_display->subProp("Size (Pixels)")->setValue(3);
+	    mapcloud_display->subProp("Cloud decimation")->setValue(4);
+	    mapcloud_display->subProp("Cloud max depth (m)")->setValue(4);
+	    mapcloud_display->subProp("Cloud voxel size (m)")->setValue(0.01);
+	    mapcloud_display->subProp("Node filtering radius (m)")->setValue(0);
+	    mapcloud_display->subProp("Node filtering angle (deg)")->setValue(30);
+	    mapcloud_display->subProp("Download map")->setValue(true);
+	    mapcloud_display->subProp("Download graph")->setValue(true);
+        }
+    });
 
-    // ============= Mappath 디스플레이 추가 =============
-    rviz::Display* mapgraph_display = manager->createDisplay("rviz/Path", "Path", true);
-    if (mapgraph_display) { // null 체크 추가
-        root_display_group->addDisplay(mapgraph_display);
-
-        QTimer::singleShot(0, [mapgraph_display]() {
-            if (mapgraph_display) {
-                mapgraph_display->subProp("Topic")->setValue("/rtabmap/mapPath");
-                mapgraph_display->subProp("Color")->setValue("0; 255; 0"); // QColor 문자열 형식 (세미콜론 후 공백은 rviz 버전에 따라 다를 수 있음)
-                mapgraph_display->subProp("Line Style")->setValue("Lines");
-                mapgraph_display->subProp("Line Width")->setValue(0.05); // Path의 Line Width는 보통 뷰포트 단위가 아닌 월드 단위일 수 있어 작게 설정. 확인 필요.
-            }
-        });
-    }
+    // test github
 
     // ============= View 설정 =============
     QTimer::singleShot(0, [frame]() {
