@@ -128,6 +128,7 @@ int main(int argc, char** argv)
     rviz::Display* mapcloud_display = manager->createDisplay("rtabmap_rviz_plugins/MapCloud", "MapCloud", true);
     if (mapcloud_display) { // null 체크 추가
         root_display_group->addDisplay(mapcloud_display);
+    }
 
     QTimer::singleShot(0, [mapcloud_display]() {
         if (mapcloud_display) {
