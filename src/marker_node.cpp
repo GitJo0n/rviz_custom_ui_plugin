@@ -17,28 +17,25 @@
 
 #include <QDesktopWidget>
 
-// #include <geometry_msgs/Point.h>  // 사람 위치 받을 때 사용
-#include <yolov10_ros_msgs/PersonMarkerData.h> // 예시 경로
-// #include <geometry_msgs/Point.h> // 기존 Point는 더 이상 직접 사용 안 함
+#include <yolov10_ros_msgs/PersonMarkerData.h>
 
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <nav_msgs/Path.h>
-#include <std_msgs/Empty.h> 
+#include <std_msgs/Empty.h>
 
 
 QApplication *app_ptr = nullptr;
 interactive_markers::InteractiveMarkerServer *server_ptr = nullptr;
+ros::NodeHandle *nh_ptr = nullptr; // NodeHandle 포인터 전역 선언
 const int MAX_MARKERS = 10;
 QWidget *image_window = nullptr;
 tf2_ros::Buffer tfBuffer;
 
-// recently clicked marker
 std::string last_clicked_marker = "";
 
 
-// 이미지 표시 함수
 void showImage(const std::string &image_path)
 {
     if (!app_ptr)
@@ -54,7 +51,6 @@ void showImage(const std::string &image_path)
         return;
     }
 
-    // 이전에 열렸던 이미지 창이 있다면 닫기
     if (image_window)
     {
         image_window->close();
@@ -62,7 +58,6 @@ void showImage(const std::string &image_path)
         image_window = nullptr;
     }
 
-    // 새 이미지 창 생성
     image_window = new QWidget();
     QLabel *label = new QLabel(image_window);
     label->setPixmap(pixmap);
@@ -73,7 +68,6 @@ void showImage(const std::string &image_path)
     image_window->setWindowTitle("Detected Image");
     image_window->show();
 
-    // 화면 해상도 기준 위치 설정
     QDesktopWidget desktop;
     int screenWidth = desktop.screenGeometry().width();
     int screenHeight = desktop.screenGeometry().height();
@@ -81,23 +75,20 @@ void showImage(const std::string &image_path)
     int windowWidth = image_window->width();
     int windowHeight = image_window->height();
 
-    int x = screenWidth - windowWidth - 20;  // 오른쪽 여백 20px
-    int y = 20;                              // 상단 여백 20px
+    int x = screenWidth - windowWidth - 20;
+    int y = 20;
 
-    image_window->move(x, y);  // 위치 지정
+    image_window->move(x, y);
     image_window->show();
-
 }
 
 
-// 클릭 이벤트 콜백 함수
 void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback)
 {
     if (feedback->event_type == visualization_msgs::InteractiveMarkerFeedback::BUTTON_CLICK)
     {
         std::string marker_name = feedback->marker_name;
 
-        // 이전 클릭 마커를 빨간색으로 되돌리기
         if (!last_clicked_marker.empty() && last_clicked_marker != marker_name)
         {
             visualization_msgs::InteractiveMarker prev_marker;
@@ -110,7 +101,7 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
                     m.color.g = 0.0;
                     m.color.b = 0.0;
                     m.color.a = 0.5;
-                    m.scale.x = 0.1; // 크기 조정
+                    m.scale.x = 0.1;
                     m.scale.y = 0.1;
                     m.scale.z = 0.1;
 
@@ -119,7 +110,6 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
             }
         }
 
-        // 현재 클릭된 마커를 초록색으로 변경
         visualization_msgs::InteractiveMarker clicked_marker;
         if (server_ptr->get(marker_name, clicked_marker))
         {
@@ -130,16 +120,15 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
                 marker.color.g = 1.0;
                 marker.color.b = 0.0;
                 marker.color.a = 0.7;
-                marker.scale.x = 0.2; // 크기 조정
+                marker.scale.x = 0.2;
                 marker.scale.y = 0.2;
                 marker.scale.z = 0.2;
 
                 server_ptr->insert(clicked_marker);
-                server_ptr->applyChanges();  // 변경 적용
+                server_ptr->applyChanges();
             }
         }
 
-        // 마지막 클릭 마커 이름 업데이트
         last_clicked_marker = marker_name;
 
         ROS_INFO("Clicked Marker: %s at (%.2f, %.2f, %.2f)",
@@ -157,25 +146,21 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
 }
 
 ros::Time last_marker_time = ros::Time(0);
-// 콜백 함수: 사람 인식 시 마커 추가
-// 콜백 함수 변경
-// 콜백 함수 변경 (mapPath 좌표를 사용)
 nav_msgs::Path latest_map_path;
 
-// /rtabmap/mapPath 토픽의 callback 함수
 void mapPathCallback(const nav_msgs::Path::ConstPtr& msg)
 {
     latest_map_path = *msg;
 }
 
-void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& msg)
+void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& person_msg)
 {
-    static ros::Time last_marker_time = ros::Time(0);
+    static ros::Time last_marker_time_static = ros::Time(0); // static 변수명 구분
     ros::Time current_time = ros::Time::now();
 
-    if ((current_time - last_marker_time).toSec() < 5.0)
+    if ((current_time - last_marker_time_static).toSec() < 5.0)
     {
-        ROS_INFO("marker adding waiting... after %.2fsec ", 5.0 - (current_time - last_marker_time).toSec());
+        ROS_INFO("marker adding waiting... after %.2fsec ", 5.0 - (current_time - last_marker_time_static).toSec());
         return;
     }
 
@@ -185,13 +170,12 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
         return;
     }
 
-    // 최신 좌표를 가져옴
     geometry_msgs::PoseStamped latest_pose = latest_map_path.poses.back();
 
-    std::string marker_name = std::to_string(msg->image_index);
+    std::string marker_name = std::to_string(person_msg->image_index);
 
     visualization_msgs::InteractiveMarker interactiveMarker;
-    interactiveMarker.header.frame_id = latest_pose.header.frame_id; // rtabmap mapPath의 frame_id 사용
+    interactiveMarker.header.frame_id = latest_pose.header.frame_id;
     interactiveMarker.name = marker_name;
     interactiveMarker.pose = latest_pose.pose;
     interactiveMarker.scale = 1.0;
@@ -214,17 +198,22 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
     control.markers.push_back(sphereMarker);
     interactiveMarker.controls.push_back(control);
 
-    if (server_ptr)
+    if (server_ptr && nh_ptr)
     {
-        ros::Publisher cooldown_pub = nh.advertise<std_msgs::Empty>("/cooldown_start", 10);
+        ros::Publisher cooldown_pub = nh_ptr->advertise<std_msgs::Empty>("/cooldown_start", 10);
         server_ptr->insert(interactiveMarker, processFeedback);
-        // 마커 추가 직후
-        std_msgs::Empty msg;
-        cooldown_pub.publish(msg);
+        
+        std_msgs::Empty empty_cooldown_msg; // 변수명 변경
+        cooldown_pub.publish(empty_cooldown_msg);
         server_ptr->applyChanges();
     }
+    else if (!nh_ptr)
+    {
+        ROS_ERROR("NodeHandle (nh_ptr) is not initialized in personMarkerCallback!");
+    }
 
-    last_marker_time = current_time;
+
+    last_marker_time_static = current_time; // static 변수 사용
 
     ROS_INFO("Marker added at RTAB-Map position: %s (%.2f, %.2f, %.2f)",
              marker_name.c_str(),
@@ -237,12 +226,11 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "marker_node");
-    ros::NodeHandle nh;
+    ros::NodeHandle n_handle; // 지역 NodeHandle 생성
+    nh_ptr = &n_handle;       // 전역 포인터에 주소 할당
 
-    // TF listener
     tf2_ros::TransformListener tfListener(tfBuffer);
 
-    // Qt
     int fake_argc = 1;
     char *fake_argv[] = {(char *)"ros_qt_node"};
     QApplication app(fake_argc, fake_argv);
@@ -253,11 +241,8 @@ int main(int argc, char **argv)
 
     server_ptr = new interactive_markers::InteractiveMarkerServer("marker_server");
 
-    // Subscriber (기존 personMarkerCallback)
-    ros::Subscriber sub = nh.subscribe("/person_marker_data", 10, personMarkerCallback);
-
-    // 새로 추가한 mapPath Subscriber
-    ros::Subscriber map_path_sub = nh.subscribe("/rtabmap/mapPath", 10, mapPathCallback);
+    ros::Subscriber sub = nh_ptr->subscribe("/person_marker_data", 10, personMarkerCallback);
+    ros::Subscriber map_path_sub = nh_ptr->subscribe("/rtabmap/mapPath", 10, mapPathCallback);
 
     ros::AsyncSpinner spinner(1);
     spinner.start();
