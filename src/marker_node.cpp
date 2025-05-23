@@ -25,6 +25,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <nav_msgs/Path.h>
+#include <std_msgs/Empty.h> 
 
 
 QApplication *app_ptr = nullptr;
