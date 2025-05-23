@@ -215,7 +215,11 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
 
     if (server_ptr)
     {
+        ros::Publisher cooldown_pub = nh.advertise<std_msgs::Empty>("/cooldown_start", 10);
         server_ptr->insert(interactiveMarker, processFeedback);
+        // 마커 추가 직후
+        std_msgs::Empty msg;
+        cooldown_pub.publish(msg);
         server_ptr->applyChanges();
     }
 
