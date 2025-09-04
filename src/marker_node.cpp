@@ -19,6 +19,7 @@
 #include <unordered_map>
 
 #include <yolov10_ros_msgs/PersonMarkerData.h>
+<<<<<<< HEAD
 #include <std_msgs/Empty.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -32,6 +33,26 @@ ros::Publisher cooldown_pub;
 std::unordered_map<std::string, std::size_t> marker_index_map;
 std::string last_clicked_marker = "";
 
+=======
+
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
+#include <nav_msgs/Path.h>
+#include <std_msgs/Empty.h>
+
+
+QApplication *app_ptr = nullptr;
+interactive_markers::InteractiveMarkerServer *server_ptr = nullptr;
+ros::NodeHandle *nh_ptr = nullptr; // NodeHandle 포인터 전역 선언
+const int MAX_MARKERS = 10;
+QWidget *image_window = nullptr;
+tf2_ros::Buffer tfBuffer;
+
+std::string last_clicked_marker = "";
+
+
+>>>>>>> f0f0dc981c135233ad1ebf643f39d1acd7d8f67a
 void showImage(const std::string &image_path)
 {
     if (!app_ptr)
@@ -78,6 +99,10 @@ void showImage(const std::string &image_path)
     image_window->show();
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> f0f0dc981c135233ad1ebf643f39d1acd7d8f67a
 void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback)
 {
     if (feedback->event_type == visualization_msgs::InteractiveMarkerFeedback::BUTTON_CLICK)
@@ -96,9 +121,15 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
                     m.color.g = 0.0;
                     m.color.b = 0.0;
                     m.color.a = 0.5;
+<<<<<<< HEAD
                     m.scale.x = 0.2;
                     m.scale.y = 0.2;
                     m.scale.z = 0.2;
+=======
+                    m.scale.x = 0.1;
+                    m.scale.y = 0.1;
+                    m.scale.z = 0.1;
+>>>>>>> f0f0dc981c135233ad1ebf643f39d1acd7d8f67a
 
                     server_ptr->insert(prev_marker);
                 }
@@ -115,9 +146,15 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
                 marker.color.g = 1.0;
                 marker.color.b = 0.0;
                 marker.color.a = 0.7;
+<<<<<<< HEAD
                 marker.scale.x = 0.3;
                 marker.scale.y = 0.3;
                 marker.scale.z = 0.3;
+=======
+                marker.scale.x = 0.2;
+                marker.scale.y = 0.2;
+                marker.scale.z = 0.2;
+>>>>>>> f0f0dc981c135233ad1ebf643f39d1acd7d8f67a
 
                 server_ptr->insert(clicked_marker);
                 server_ptr->applyChanges();
@@ -140,11 +177,16 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
     }
 }
 
+<<<<<<< HEAD
+=======
+ros::Time last_marker_time = ros::Time(0);
+>>>>>>> f0f0dc981c135233ad1ebf643f39d1acd7d8f67a
 nav_msgs::Path latest_map_path;
 
 void mapPathCallback(const nav_msgs::Path::ConstPtr& msg)
 {
     latest_map_path = *msg;
+<<<<<<< HEAD
     for (const auto& kv : marker_index_map)
     {
         const std::string& name = kv.first;
@@ -164,13 +206,18 @@ void mapPathCallback(const nav_msgs::Path::ConstPtr& msg)
 }
 
 void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& msg)
+=======
+}
+
+void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& person_msg)
+>>>>>>> f0f0dc981c135233ad1ebf643f39d1acd7d8f67a
 {
-    static ros::Time last_marker_time = ros::Time(0);
+    static ros::Time last_marker_time_static = ros::Time(0); // static 변수명 구분
     ros::Time current_time = ros::Time::now();
 
-    if ((current_time - last_marker_time).toSec() < 5.0)
+    if ((current_time - last_marker_time_static).toSec() < 5.0)
     {
-        ROS_INFO("marker adding waiting... after %.2fsec ", 5.0 - (current_time - last_marker_time).toSec());
+        ROS_INFO("marker adding waiting... after %.2fsec ", 5.0 - (current_time - last_marker_time_static).toSec());
         return;
     }
 
@@ -181,7 +228,12 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
     }
 
     geometry_msgs::PoseStamped latest_pose = latest_map_path.poses.back();
+<<<<<<< HEAD
     std::string marker_name = std::to_string(msg->image_index);
+=======
+
+    std::string marker_name = std::to_string(person_msg->image_index);
+>>>>>>> f0f0dc981c135233ad1ebf643f39d1acd7d8f67a
 
     visualization_msgs::InteractiveMarker interactiveMarker;
     interactiveMarker.header.frame_id = latest_pose.header.frame_id;
@@ -219,9 +271,13 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
 
     interactiveMarker.controls.push_back(control);
 
-    if (server_ptr)
+    if (server_ptr && nh_ptr)
     {
+        ros::Publisher cooldown_pub = nh_ptr->advertise<std_msgs::Empty>("/cooldown_start", 10);
         server_ptr->insert(interactiveMarker, processFeedback);
+        
+        std_msgs::Empty empty_cooldown_msg; // 변수명 변경
+        cooldown_pub.publish(empty_cooldown_msg);
         server_ptr->applyChanges();
         marker_index_map[marker_name] = latest_map_path.poses.size() - 1;
 
@@ -229,8 +285,13 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
         std_msgs::Empty empty_msg;
         cooldown_pub.publish(empty_msg);
     }
+    else if (!nh_ptr)
+    {
+        ROS_ERROR("NodeHandle (nh_ptr) is not initialized in personMarkerCallback!");
+    }
 
-    last_marker_time = current_time;
+
+    last_marker_time_static = current_time; // static 변수 사용
 
     ROS_INFO("Marker added at RTAB-Map position: %s (%.2f, %.2f, %.2f)",
              marker_name.c_str(),
@@ -239,10 +300,15 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
              latest_pose.pose.position.z);
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> f0f0dc981c135233ad1ebf643f39d1acd7d8f67a
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "marker_node");
-    ros::NodeHandle nh;
+    ros::NodeHandle n_handle; // 지역 NodeHandle 생성
+    nh_ptr = &n_handle;       // 전역 포인터에 주소 할당
 
     tf2_ros::TransformListener tfListener(tfBuffer);
 
@@ -257,8 +323,13 @@ int main(int argc, char **argv)
     server_ptr = new interactive_markers::InteractiveMarkerServer("marker_server");
     cooldown_pub = nh.advertise<std_msgs::Empty>("/cooldown_start", 10);
 
+<<<<<<< HEAD
     ros::Subscriber sub = nh.subscribe("/person_marker_data", 10, personMarkerCallback);
     ros::Subscriber map_path_sub = nh.subscribe("/rtabmap/mapPath", 10, mapPathCallback);
+=======
+    ros::Subscriber sub = nh_ptr->subscribe("/person_marker_data", 10, personMarkerCallback);
+    ros::Subscriber map_path_sub = nh_ptr->subscribe("/rtabmap/mapPath", 10, mapPathCallback);
+>>>>>>> f0f0dc981c135233ad1ebf643f39d1acd7d8f67a
 
     ros::AsyncSpinner spinner(1);
     spinner.start();
