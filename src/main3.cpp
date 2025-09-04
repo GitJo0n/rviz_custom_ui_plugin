@@ -51,6 +51,7 @@ int main(int argc, char** argv)
     rviz::Display* image_display = manager->createDisplay("rviz/Image", "Camera", true);
     root_display_group->addDisplay(image_display);
 
+    // 디스플레이 속성 설정은 안전하게 QTimer로 지연
     QTimer::singleShot(0, [image_display]() {
         if (image_display) {
             image_display->subProp("Image Topic")->setValue("/camera/color/image_raw_dd");
@@ -59,21 +60,36 @@ int main(int argc, char** argv)
         }
     });
 
+    // RenderPanel 추출
     rviz::RenderPanel* image_render_panel = image_display->findChild<rviz::RenderPanel*>();
     if (image_render_panel) {
-        QDockWidget* image_dock = new QDockWidget("CAMERA");
+        // RenderPanel 분리 및 크기 정책 설정
         image_render_panel->setParent(nullptr);
-        image_dock->setWidget(image_render_panel);
+        image_render_panel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    
+        // 레이아웃 컨테이너 생성
+        QWidget* container = new QWidget();
+        QVBoxLayout* layout = new QVBoxLayout(container);
+        layout->setContentsMargins(0, 0, 0, 0);  // 패딩 제거
+        layout->addWidget(image_render_panel);
+    
+        container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+        // 독 위젯 설정
+        QDockWidget* image_dock = new QDockWidget("CAMERA");
+        image_dock->setWidget(container);
 
         image_dock->setFloating(true);
         image_dock->setAllowedAreas(Qt::NoDockWidgetArea);
         image_dock->setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
-        image_dock->resize(500, 500);
+        image_dock->resize(1000, 1000);  // 원하는 크기 설정
 
+        // 화면 하단에 위치
         QScreen* screen = QGuiApplication::primaryScreen();
         QRect screenGeometry = screen->geometry();
-        image_dock->move(50, screenGeometry.height() - 550);
+        image_dock->move(50, screenGeometry.height() - 1050);  // 화면 아래에서 1000픽셀 여유
 
+        // 창을 위로 올리고 보이게 함
         QTimer::singleShot(500, [image_dock]() {
             image_dock->setFloating(true);
             image_dock->setHidden(false);
@@ -82,6 +98,7 @@ int main(int argc, char** argv)
 
         image_dock->show();
     }
+
 
     // ============= PointCloud2 디스플레이 추가 =============
     rviz::Display* pointcloud_display = manager->createDisplay("rviz/PointCloud2", "PointCloud2", true);
@@ -100,7 +117,7 @@ int main(int argc, char** argv)
         if (mapcloud_display) {
 	    mapcloud_display->subProp("Topic")->setValue("/rtabmap/mapData");
             mapcloud_display->subProp("Style")->setValue("Points");
-	    mapcloud_display->subProp("Size (Pixels)")->setValue(4);
+	    mapcloud_display->subProp("Size (Pixels)")->setValue(3);
 	    mapcloud_display->subProp("Cloud decimation")->setValue(1);
 	    mapcloud_display->subProp("Cloud max depth (m)")->setValue(3);
 	    mapcloud_display->subProp("Cloud voxel size (m)")->setValue(0.01);

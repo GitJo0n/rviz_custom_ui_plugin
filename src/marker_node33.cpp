@@ -16,22 +16,28 @@
 #include <vector>
 
 #include <QDesktopWidget>
-#include <unordered_map>
 
-#include <yolov10_ros_msgs/PersonMarkerData.h>
-#include <std_msgs/Empty.h>
+// #include <geometry_msgs/Point.h>  // 사람 위치 받을 때 사용
+#include <yolov10_ros_msgs/PersonMarkerData.h> // 예시 경로
+// #include <geometry_msgs/Point.h> // 기존 Point는 더 이상 직접 사용 안 함
+
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 #include <nav_msgs/Path.h>
+
 
 QApplication *app_ptr = nullptr;
 interactive_markers::InteractiveMarkerServer *server_ptr = nullptr;
+const int MAX_MARKERS = 10;
 QWidget *image_window = nullptr;
 tf2_ros::Buffer tfBuffer;
-ros::Publisher cooldown_pub;
-std::unordered_map<std::string, std::size_t> marker_index_map;
+
+// recently clicked marker
 std::string last_clicked_marker = "";
 
+
+// 이미지 표시 함수
 void showImage(const std::string &image_path)
 {
     if (!app_ptr)
@@ -47,6 +53,7 @@ void showImage(const std::string &image_path)
         return;
     }
 
+    // 이전에 열렸던 이미지 창이 있다면 닫기
     if (image_window)
     {
         image_window->close();
@@ -54,6 +61,7 @@ void showImage(const std::string &image_path)
         image_window = nullptr;
     }
 
+    // 새 이미지 창 생성
     image_window = new QWidget();
     QLabel *label = new QLabel(image_window);
     label->setPixmap(pixmap);
@@ -64,6 +72,7 @@ void showImage(const std::string &image_path)
     image_window->setWindowTitle("Detected Image");
     image_window->show();
 
+    // 화면 해상도 기준 위치 설정
     QDesktopWidget desktop;
     int screenWidth = desktop.screenGeometry().width();
     int screenHeight = desktop.screenGeometry().height();
@@ -71,19 +80,23 @@ void showImage(const std::string &image_path)
     int windowWidth = image_window->width();
     int windowHeight = image_window->height();
 
-    int x = screenWidth - windowWidth - 20;
-    int y = 20;
+    int x = screenWidth - windowWidth - 20;  // 오른쪽 여백 20px
+    int y = 20;                              // 상단 여백 20px
 
-    image_window->move(x, y);
+    image_window->move(x, y);  // 위치 지정
     image_window->show();
+
 }
 
+
+// 클릭 이벤트 콜백 함수
 void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback)
 {
     if (feedback->event_type == visualization_msgs::InteractiveMarkerFeedback::BUTTON_CLICK)
     {
         std::string marker_name = feedback->marker_name;
 
+        // 이전 클릭 마커를 빨간색으로 되돌리기
         if (!last_clicked_marker.empty() && last_clicked_marker != marker_name)
         {
             visualization_msgs::InteractiveMarker prev_marker;
@@ -96,15 +109,16 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
                     m.color.g = 0.0;
                     m.color.b = 0.0;
                     m.color.a = 0.5;
-                    m.scale.x = 0.2;
-                    m.scale.y = 0.2;
-                    m.scale.z = 0.2;
+                    m.scale.x = 0.1; // 크기 조정
+                    m.scale.y = 0.1;
+                    m.scale.z = 0.1;
 
                     server_ptr->insert(prev_marker);
                 }
             }
         }
 
+        // 현재 클릭된 마커를 초록색으로 변경
         visualization_msgs::InteractiveMarker clicked_marker;
         if (server_ptr->get(marker_name, clicked_marker))
         {
@@ -115,15 +129,16 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
                 marker.color.g = 1.0;
                 marker.color.b = 0.0;
                 marker.color.a = 0.7;
-                marker.scale.x = 0.3;
-                marker.scale.y = 0.3;
-                marker.scale.z = 0.3;
+                marker.scale.x = 0.2; // 크기 조정
+                marker.scale.y = 0.2;
+                marker.scale.z = 0.2;
 
                 server_ptr->insert(clicked_marker);
-                server_ptr->applyChanges();
+                server_ptr->applyChanges();  // 변경 적용
             }
         }
 
+        // 마지막 클릭 마커 이름 업데이트
         last_clicked_marker = marker_name;
 
         ROS_INFO("Clicked Marker: %s at (%.2f, %.2f, %.2f)",
@@ -140,27 +155,16 @@ void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr
     }
 }
 
+ros::Time last_marker_time = ros::Time(0);
+// 콜백 함수: 사람 인식 시 마커 추가
+// 콜백 함수 변경
+// 콜백 함수 변경 (mapPath 좌표를 사용)
 nav_msgs::Path latest_map_path;
 
+// /rtabmap/mapPath 토픽의 callback 함수
 void mapPathCallback(const nav_msgs::Path::ConstPtr& msg)
 {
     latest_map_path = *msg;
-    for (const auto& kv : marker_index_map)
-    {
-        const std::string& name = kv.first;
-        std::size_t idx = kv.second;
-
-        if (idx >= latest_map_path.poses.size())
-            continue;
-
-        visualization_msgs::InteractiveMarker im;
-        if (server_ptr->get(name, im))
-        {
-            im.pose = latest_map_path.poses[idx].pose;
-            server_ptr->insert(im);
-        }
-    }
-    server_ptr->applyChanges();
 }
 
 void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& msg)
@@ -181,6 +185,7 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
     }
 
     geometry_msgs::PoseStamped latest_pose = latest_map_path.poses.back();
+
     std::string marker_name = std::to_string(msg->image_index);
 
     visualization_msgs::InteractiveMarker interactiveMarker;
@@ -194,27 +199,34 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
     control.interaction_mode = visualization_msgs::InteractiveMarkerControl::BUTTON;
     control.always_visible = true;
 
+    // Sphere marker (기존)
     visualization_msgs::Marker sphereMarker;
     sphereMarker.type = visualization_msgs::Marker::SPHERE;
-    sphereMarker.scale.x = 0.2;
-    sphereMarker.scale.y = 0.2;
-    sphereMarker.scale.z = 0.2;
+    sphereMarker.scale.x = 0.1;
+    sphereMarker.scale.y = 0.1;
+    sphereMarker.scale.z = 0.1;
     sphereMarker.color.r = 1.0;
     sphereMarker.color.g = 0.0;
     sphereMarker.color.b = 0.0;
     sphereMarker.color.a = 0.5;
+
     control.markers.push_back(sphereMarker);
 
+    // 추가된 Arrow marker
     visualization_msgs::Marker arrowMarker;
     arrowMarker.type = visualization_msgs::Marker::ARROW;
-    arrowMarker.scale.x = 0.3;
-    arrowMarker.scale.y = 0.05;
-    arrowMarker.scale.z = 0.05;
-    arrowMarker.color.r = 1.0;
-    arrowMarker.color.g = 0.0;
-    arrowMarker.color.b = 0.0;
-    arrowMarker.color.a = 0.8;
-//    arrowMarker.pose = latest_pose.pose;
+    arrowMarker.scale.x = 0.1; // 길이
+    arrowMarker.scale.y = 0.02; // 너비
+    arrowMarker.scale.z = 0.02; // 높이
+
+    arrowMarker.color = sphereMarker.color; 
+
+    // 방향 설정 (orientation은 이미 pose에서 설정됨)
+    arrowMarker.pose.orientation.x = 0.0;
+    arrowMarker.pose.orientation.y = 0.0;
+    arrowMarker.pose.orientation.z = 0.0;
+    arrowMarker.pose.orientation.w = 1.0;
+
     control.markers.push_back(arrowMarker);
 
     interactiveMarker.controls.push_back(control);
@@ -223,11 +235,6 @@ void personMarkerCallback(const yolov10_ros_msgs::PersonMarkerData::ConstPtr& ms
     {
         server_ptr->insert(interactiveMarker, processFeedback);
         server_ptr->applyChanges();
-        marker_index_map[marker_name] = latest_map_path.poses.size() - 1;
-
-        // 🔁 퍼블리시 쿨다운 메시지
-        std_msgs::Empty empty_msg;
-        cooldown_pub.publish(empty_msg);
     }
 
     last_marker_time = current_time;
@@ -244,8 +251,10 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "marker_node");
     ros::NodeHandle nh;
 
+    // TF listener
     tf2_ros::TransformListener tfListener(tfBuffer);
 
+    // Qt
     int fake_argc = 1;
     char *fake_argv[] = {(char *)"ros_qt_node"};
     QApplication app(fake_argc, fake_argv);
@@ -255,9 +264,11 @@ int main(int argc, char **argv)
     std::srand(std::time(0));
 
     server_ptr = new interactive_markers::InteractiveMarkerServer("marker_server");
-    cooldown_pub = nh.advertise<std_msgs::Empty>("/cooldown_start", 10);
 
+    // Subscriber (기존 personMarkerCallback)
     ros::Subscriber sub = nh.subscribe("/person_marker_data", 10, personMarkerCallback);
+
+    // 새로 추가한 mapPath Subscriber
     ros::Subscriber map_path_sub = nh.subscribe("/rtabmap/mapPath", 10, mapPathCallback);
 
     ros::AsyncSpinner spinner(1);
